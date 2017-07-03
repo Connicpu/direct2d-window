@@ -1,3 +1,4 @@
-pub mod data;
-pub mod win32_helpers;
-pub mod wndproc;
+pub(crate) mod data;
+pub(crate) mod win32_helpers;
+pub(crate) mod wndproc;
+pub(crate) mod dpi;

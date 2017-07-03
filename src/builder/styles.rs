@@ -39,6 +39,14 @@ impl WindowStyle {
             .overlapped_window_ex(true)
     }
 
+    pub fn style_flags(self) -> DWORD {
+        self.flag
+    }
+
+    pub fn style_flags_ex(self) -> DWORD {
+        self.flag_ex
+    }
+
     flag_toggle! {
         flag WS_BORDER {
             fn border;
