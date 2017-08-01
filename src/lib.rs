@@ -5,6 +5,7 @@ extern crate direct2d;
 extern crate kernel32;
 extern crate libloading;
 extern crate user32;
+extern crate gdi32;
 extern crate uuid;
 extern crate winapi;
 

@@ -17,7 +17,9 @@ fn main() {
             match event {
                 Event::CloseRequest => window.close(),
                 Event::Quit => break 'outer,
-                _ => continue,
+                event => {
+                    println!("{:?}", event);
+                }
             }
         }
 

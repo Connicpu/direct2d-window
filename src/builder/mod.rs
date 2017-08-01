@@ -1,9 +1,11 @@
 use internals::win32_helpers::{create_window, create_window_class};
 use window::Window;
 
+use direct2d::Factory;
+use direct2d::error::D2D1Error;
 use winapi::HRESULT;
 
-pub use self::styles::{WindowStyle, WindowClassStyle};
+pub use self::styles::{WindowClassStyle, WindowStyle};
 
 pub mod styles;
 
@@ -23,11 +25,18 @@ impl WindowProperties {
 pub struct WindowBuilder {
     pub class_style: styles::WindowClassStyle,
     pub window_props: WindowProperties,
+    pub d2d_factory: Option<Factory>,
 }
 
 impl WindowBuilder {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    /// If you don't call this method, a factory will be created for you
+    pub fn with_factory(&mut self, factory: Factory) -> &mut Self {
+        self.d2d_factory = Some(factory);
+        self
     }
 
     pub fn class_style<F>(&mut self, func: F) -> &mut Self
@@ -56,10 +65,17 @@ impl WindowBuilder {
 
     pub fn build(&self) -> Result<Window, WindowError> {
         use self::WindowError::*;
+        ::internals::dpi::enable_dpi();
+
+        let factory = self.d2d_factory
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| Factory::new())
+            .map_err(FactoryCreation)?;
 
         let class = create_window_class(self.class_style)
             .map_err(ClassRegistration)?;
-        let window = create_window(class, &self.window_props)
+        let window = create_window(class, &self.window_props, factory)
             .map_err(WindowCreation)?;
 
         Ok(window)
@@ -70,4 +86,5 @@ impl WindowBuilder {
 pub enum WindowError {
     ClassRegistration(HRESULT),
     WindowCreation(HRESULT),
+    FactoryCreation(D2D1Error),
 }

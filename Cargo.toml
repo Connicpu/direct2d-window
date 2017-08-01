@@ -1,10 +1,11 @@
 [package]
-authors = ["Conni Hilarides <connorcpu@live.com>"]
+authors = ["Connie Hilarides <conni_h@outlook.com>"]
 name = "direct2d-window"
 version = "0.1.0"
 
 [dependencies]
 direct2d = "0.0.6"
+gdi32-sys = "0.2.0"
 kernel32-sys = "0.2.2"
 lazy_static = "0.2.8"
 libloading = "0.4.0"
@@ -14,3 +15,4 @@ winapi = "0.2.8"
 [dependencies.uuid]
 features = ["v4"]
 version = "0.5.0"
+

@@ -23,7 +23,7 @@ impl Window {
     }
 
     pub fn dpi_scale(&self) -> f32 {
-        self.inner.dpi_scale
+        self.inner.dpi_scale.get()
     }
 
     pub fn poll_events(&self) -> EventsIter {

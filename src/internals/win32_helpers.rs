@@ -8,6 +8,7 @@ use std::{mem, ptr, fmt, str};
 use std::sync::Arc;
 use std::panic;
 
+use direct2d::Factory;
 use kernel32;
 use user32;
 use uuid::Uuid;
@@ -94,10 +95,10 @@ fn get_title(title: &Option<String>) -> Vec<u16> {
         .collect()
 }
 
-pub fn create_window(class: WindowClass, props: &WindowProperties) -> Result<Window, HRESULT> {
+pub fn create_window(class: WindowClass, props: &WindowProperties, factory: Factory) -> Result<Window, HRESULT> {
     let title: Vec<u16> = get_title(&props.title);
 
-    let window_inner = Box::new(WindowInner::new(class.clone()));
+    let window_inner = Box::new(WindowInner::new(class.clone(), factory));
     unsafe {
         let hwnd = user32::CreateWindowExW(
             props.style.style_flags_ex(),
