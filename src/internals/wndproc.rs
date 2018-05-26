@@ -1,12 +1,14 @@
-use internals::data::WindowInner;
-use internals::dpi;
 use event::{Event, KeyState, MouseButton};
+use internals::data::WindowInner;
 
 use std::panic;
 use std::panic::AssertUnwindSafe;
 
-use user32;
-use winapi::*;
+use winapi::shared::basetsd::*;
+use winapi::shared::minwindef::*;
+use winapi::shared::windef::*;
+use winapi::um::winuser::*;
+use windows_dpi as dpi;
 
 pub unsafe extern "system" fn window_proc(
     hwnd: HWND,
@@ -14,7 +16,7 @@ pub unsafe extern "system" fn window_proc(
     wp: WPARAM,
     lp: LPARAM,
 ) -> LRESULT {
-    let lpwindow = user32::GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const WindowInner;
+    let lpwindow = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const WindowInner;
     let inner: Option<&WindowInner> = if !lpwindow.is_null() {
         Some(&*lpwindow)
     } else {
@@ -36,7 +38,7 @@ pub unsafe extern "system" fn window_proc(
             let window: &WindowInner = &*lpwindow;
             window.hwnd.set(hwnd);
             window.dpi_scale.set(dpi::get_dpi_for(hwnd));
-            user32::SetWindowLongPtrW(hwnd, GWLP_USERDATA, lpwindow as LONG_PTR);
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, lpwindow as LONG_PTR);
             0
         }
         (Some(inner), WM_CLOSE) => {
@@ -53,6 +55,26 @@ pub unsafe extern "system" fn window_proc(
 
             let event = Event::DpiChanged { new_dpi };
             inner.events.borrow_mut().push_back(event);
+            0
+        }
+        (Some(inner), WM_SIZE) => {
+            let event = Event::Resize {
+                width: x,
+                height: y,
+            };
+            inner.events.borrow_mut().push_back(event);
+            0
+        }
+        (Some(inner), WM_SIZING) => {
+            let event = Event::Resizing {
+                width: x,
+                height: y,
+            };
+            inner.events.borrow_mut().push_back(event);
+            0
+        }
+        (Some(inner), WM_PAINT) => {
+            inner.events.borrow_mut().push_back(Event::Paint);
             0
         }
 
@@ -157,19 +179,19 @@ pub unsafe extern "system" fn window_proc(
             inner.events.borrow_mut().push_back(event);
             0
         }
-        _ => user32::DefWindowProcW(hwnd, msg, wp, lp),
+        _ => DefWindowProcW(hwnd, msg, wp, lp),
     }));
 
     // Panic handling
     match result {
         Ok(lres) => lres,
         Err(panic) => {
-            let lpwindow = user32::GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const WindowInner;
+            let lpwindow = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const WindowInner;
             if !lpwindow.is_null() {
                 let inner: &WindowInner = &*lpwindow;
                 inner.panic.set(Some(panic));
             }
-            user32::DefWindowProcW(hwnd, msg, wp, lp)
+            DefWindowProcW(hwnd, msg, wp, lp)
         }
     }
 }

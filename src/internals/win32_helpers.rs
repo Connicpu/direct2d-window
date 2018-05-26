@@ -1,18 +1,22 @@
+use builder::styles::WindowClassStyle;
+use builder::WindowProperties;
+use error::DResult;
 use internals::data::WindowInner;
 use internals::wndproc::window_proc;
-use builder::styles::{WindowStyle, WindowClassStyle};
-use builder::WindowProperties;
 use window::Window;
 
-use std::{mem, ptr, fmt, str};
-use std::sync::Arc;
 use std::panic;
+use std::sync::Arc;
+use std::{fmt, mem, ptr};
 
 use direct2d::Factory;
-use kernel32;
-use user32;
 use uuid::Uuid;
-use winapi::*;
+use winapi::shared::minwindef::*;
+use winapi::shared::ntdef::LPCWSTR;
+use winapi::shared::winerror::{FACILITY_WIN32, HRESULT};
+use winapi::um::errhandlingapi::GetLastError;
+use winapi::um::libloaderapi::GetModuleHandleExW;
+use winapi::um::winuser::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct HModule(pub HMODULE);
@@ -27,7 +31,7 @@ lazy_static! {
     pub static ref MODULE_HANDLE: HModule = {
         unsafe {
             let mut module = ptr::null_mut();
-            let res = kernel32::GetModuleHandleExW(
+            let res = GetModuleHandleExW(
                 // GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                 // GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                 0x4 | 0x2,
@@ -77,12 +81,14 @@ pub fn create_window_class(flags: WindowClassStyle) -> Result<WindowClass, HRESU
         hIconSm: ptr::null_mut(),
     };
 
-    let atom = unsafe { user32::RegisterClassExW(&classdef) };
+    let atom = unsafe { RegisterClassExW(&classdef) };
     if atom == 0 {
-        return Err(hresult_from_win32(unsafe { kernel32::GetLastError() }));
+        return Err(hresult_from_win32(unsafe { GetLastError() }));
     }
 
-    Ok(WindowClass { reg: Arc::new(WindowClassReg { atom: atom }) })
+    Ok(WindowClass {
+        reg: Arc::new(WindowClassReg { atom: atom }),
+    })
 }
 
 fn get_title(title: &Option<String>) -> Vec<u16> {
@@ -95,12 +101,16 @@ fn get_title(title: &Option<String>) -> Vec<u16> {
         .collect()
 }
 
-pub fn create_window(class: WindowClass, props: &WindowProperties, factory: Factory) -> Result<Window, HRESULT> {
+pub fn create_window(
+    class: WindowClass,
+    props: &WindowProperties,
+    factory: Factory,
+) -> DResult<Window> {
     let title: Vec<u16> = get_title(&props.title);
 
-    let window_inner = Box::new(WindowInner::new(class.clone(), factory));
+    let window_inner: Box<WindowInner> = Box::new(WindowInner::create(class.clone(), factory)?);
     unsafe {
-        let hwnd = user32::CreateWindowExW(
+        let hwnd = CreateWindowExW(
             props.style.style_flags_ex(),
             class.reg.atom as LPCWSTR,
             title.as_ptr(),
@@ -116,28 +126,46 @@ pub fn create_window(class: WindowClass, props: &WindowProperties, factory: Fact
         );
 
         if hwnd == (!0) as *mut _ {
-            return Err(hresult_from_win32(kernel32::GetLastError()));
+            Err(hresult_from_win32(GetLastError()))?;
         }
 
         assert_eq!(hwnd, window_inner.hwnd.get());
 
-        user32::ShowWindow(hwnd, SW_SHOW);
+        ShowWindow(hwnd, SW_SHOW);
     }
 
     Ok(Window::new(window_inner))
 }
 
-pub fn process_message(inner: &WindowInner) {
+pub fn peek_message(inner: &WindowInner) -> bool {
     let hwnd = inner.hwnd.get();
     unsafe {
         let mut msg = mem::uninitialized();
-        user32::PeekMessageW(&mut msg, hwnd, 0, 0, PM_REMOVE);
-        user32::TranslateMessage(&msg);
-        user32::DispatchMessageW(&msg);
+        let any = PeekMessageW(&mut msg, hwnd, 0, 0, PM_REMOVE) != 0;
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
 
         if let Some(panic) = inner.panic.replace(None) {
             panic::resume_unwind(panic);
         }
+
+        any
+    }
+}
+
+pub fn wait_message(inner: &WindowInner) -> bool {
+    let hwnd = inner.hwnd.get();
+    unsafe {
+        let mut msg = mem::uninitialized();
+        let any = GetMessageW(&mut msg, hwnd, 0, 0) != 0;
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+
+        if let Some(panic) = inner.panic.replace(None) {
+            panic::resume_unwind(panic);
+        }
+
+        any
     }
 }
 
@@ -162,7 +190,7 @@ struct WindowClassReg {
 impl Drop for WindowClassReg {
     fn drop(&mut self) {
         unsafe {
-            user32::UnregisterClassW(self.atom as LPCWSTR, MODULE_HANDLE.as_hinst());
+            UnregisterClassW(self.atom as LPCWSTR, MODULE_HANDLE.as_hinst());
         }
     }
 }

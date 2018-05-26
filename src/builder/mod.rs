@@ -1,9 +1,8 @@
+use error::DResult;
 use internals::win32_helpers::{create_window, create_window_class};
 use window::Window;
 
 use direct2d::Factory;
-use direct2d::error::D2D1Error;
-use winapi::HRESULT;
 
 pub use self::styles::{WindowClassStyle, WindowStyle};
 
@@ -63,28 +62,17 @@ impl WindowBuilder {
         self
     }
 
-    pub fn build(&self) -> Result<Window, WindowError> {
-        use self::WindowError::*;
-        ::internals::dpi::enable_dpi();
+    pub fn build(&self) -> DResult<Window> {
+        ::windows_dpi::enable_dpi();
 
         let factory = self.d2d_factory
             .clone()
             .map(Ok)
-            .unwrap_or_else(|| Factory::new())
-            .map_err(FactoryCreation)?;
+            .unwrap_or_else(|| Factory::new())?;
 
-        let class = create_window_class(self.class_style)
-            .map_err(ClassRegistration)?;
-        let window = create_window(class, &self.window_props, factory)
-            .map_err(WindowCreation)?;
+        let class = create_window_class(self.class_style)?;
+        let window = create_window(class, &self.window_props, factory)?;
 
         Ok(window)
     }
-}
-
-#[derive(Debug)]
-pub enum WindowError {
-    ClassRegistration(HRESULT),
-    WindowCreation(HRESULT),
-    FactoryCreation(D2D1Error),
 }

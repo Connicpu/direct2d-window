@@ -3,16 +3,21 @@ authors = ["Connie Hilarides <conni_h@outlook.com>"]
 name = "direct2d-window"
 version = "0.1.0"
 
-[dependencies]
-direct2d = "0.0.6"
-gdi32-sys = "0.2.0"
-kernel32-sys = "0.2.2"
-lazy_static = "0.2.8"
-libloading = "0.4.0"
-user32-sys = "0.2.0"
-winapi = "0.2.8"
+[target.'cfg(windows)'.dependencies]
+direct2d = "0.1.2"
+lazy_static = "1.0"
+windows_dpi = "0.3"
+direct3d11 = "0.1.4"
+directwrite = "0.1.2"
+dxgi = "0.1.7"
 
-[dependencies.uuid]
+[target.'cfg(windows)'.dependencies.uuid]
 features = ["v4"]
 version = "0.5.0"
 
+[target.'cfg(windows)'.dependencies.winapi]
+version = "0.3"
+features = ["basetsd", "d2d1_1", "errhandlingapi", "libloaderapi", "minwindef", "ntdef", "windef", "winerror", "winuser"]
+
+[target.'cfg(windows)'.dev-dependencies]
+rand = "0.4"

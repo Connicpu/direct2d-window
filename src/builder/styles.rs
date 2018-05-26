@@ -1,4 +1,5 @@
-use winapi::*;
+use winapi::shared::minwindef::*;
+use winapi::um::winuser::*;
 
 macro_rules! flag_toggle {
     ($($flag_field:ident $flag:ident { $(#[$setter_meta:meta])* fn $setter_name:ident; $(#[$getter_meta:meta])* fn $getter_name:ident; })*) => {

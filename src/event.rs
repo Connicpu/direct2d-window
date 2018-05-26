@@ -14,15 +14,33 @@ pub enum Event {
     Quit,
 
     /// Window was moved to a monitor with a different DPI value
-    DpiChanged { new_dpi: f32 },
+    DpiChanged {
+        new_dpi: f32,
+    },
 
-    MouseMove { x: f32, y: f32 },
+    MouseMove {
+        x: f32,
+        y: f32,
+    },
+
     MouseButton {
         button: MouseButton,
         state: KeyState,
         x: f32,
         y: f32,
     },
+
+    Resizing {
+        width: f32,
+        height: f32,
+    },
+
+    Resize {
+        width: f32,
+        height: f32,
+    },
+
+    Paint,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
